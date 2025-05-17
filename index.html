@@ -2,37 +2,27 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Оценка предпринимательских компетенций</title>
+  <title>Анализ ответов по вопросам (с разбаловкой)</title>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     body { font-family: Arial; padding: 24px; background: #f9f9f9; }
     h1 { text-align: center; }
-    .error { color: #c00; font-weight: bold; }
-    table { border-collapse: collapse; margin-top: 20px; width: 100%; background: #fff; }
-    th, td { border: 1px solid #bbb; padding: 6px 8px; }
+    .warn { color: #b00; }
+    .person { margin: 30px 0; background: #fff; border-radius: 10px; box-shadow: 0 2px 8px #0001; padding: 18px; }
+    .scores, .answers { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid #bbb; padding: 4px 8px; }
     th { background: #e9e9e9; }
-    tr.warn td { background: #fff6f6; color: #c00; }
-    .variant-table { margin-bottom: 32px; }
-    .explain { color: #555; margin: 10px 0 24px 0; }
+    .answers th { background: #f8f8d7; }
+    .warn-cell { background: #fff0f0; }
   </style>
 </head>
 <body>
-  <h1>Разбалловка теста компетенций (авторазбор)</h1>
-  <div class="explain">
-    Загрузите таблицу ответов (.xlsx/.csv) — увидите для каждого варианта, какой балл ему присваивается и итог респондента.<br>
-    Неопределённые ответы подсвечиваются. Можно дополнять словарь прямо в коде.<br>
-  </div>
+  <h1>Детальная разбаловка по каждому вопросу</h1>
   <input type="file" id="fileInput" accept=".xlsx,.csv">
-  <div id="variants"></div>
-  <div id="output"></div>
-
-<script>
-// Весовые коэффициенты — поправь при необходимости!
+  <div id="result"></div>
+  <script>
 const weights = [8,7,6,7,5,8,7,6,5,6,5,8,7,6,7,5,4,5,5,4,7,5,6,5,7,8,7,6,7,6,8];
-
-// Предзаполненный mapping (добавляй свои при необходимости):
 const likertMapping = {
-  // Soft (1-22)
   'Совсем не уверен': 1, 'Скорее не уверен': 2, 'Нейтрально': 3, 'Скорее уверен': 4, 'Полностью уверен': 5,
   'Демократический': 4, 'Директивный': 2, 'Ситуативный': 5, 'Либеральный': 3, 'Смешанный': 4,
   'Провожу дополнительное обсуждение, чтобы найти компромисс': 5,
@@ -47,73 +37,47 @@ const likertMapping = {
   'Чувствую стресс, но продолжаю работать': 2,
   'Теряю продуктивность и не могу справиться с изменениями': 1,
   'Совсем не умею': 1, 'Редко удаётся': 2, 'Иногда удаётся': 3, 'Часто удаётся': 4, 'Почти всегда удаётся': 5,
-  // Hard (23-31) — примеры, дополняй!
-  'Не использую': 1,
-  'Использую только базовые функции': 2,
-  'Использую для личных задач': 2,
-  'Использую для командной работы': 3,
-  'Умею создавать каналы и группы': 3,
-  'Умею настраивать сложные workflows': 4,
-  'Умею интегрировать с другими инструментами': 4,
-  'Профессионально использую для стратегического управления': 5,
-  'Профессионально использую все возможности': 5,
-  'Да': 5, 'Нет': 1
+  // Примеры для Hard — Дополни, если встретишь новые варианты!
+  'Не использую': 1, 'Использую только базовые функции': 2, 'Использую для личных задач': 2,
+  'Использую для командной работы': 3, 'Умею создавать каналы и группы': 3, 'Умею настраивать сложные workflows': 4,
+  'Умею интегрировать с другими инструментами': 4, 'Профессионально использую для стратегического управления': 5,
+  'Профессионально использую все возможности': 5, 'Да': 5, 'Нет': 1
 };
 
-// Основная функция обработки файла
+// Названия для заголовков по вопросам
+const questionLabels = Array.from({length: 31}, (_,i) => `Вопрос ${i+1}`);
+
 function handleFile(file) {
   const reader = new FileReader();
   reader.onload = function(e) {
     let data;
     if (file.name.endsWith('.csv')) {
-      // Для csv — разбираем вручную
       const text = e.target.result;
-      data = text.split(/\\r?\\n/).map(r=>r.split(';').map(x=>x.trim()));
+      data = text.split(/\r?\n/).map(r=>r.split(';').map(x=>x.trim()));
     } else {
-      // Для xlsx
       const workbook = XLSX.read(e.target.result, {type: 'array'});
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       data = XLSX.utils.sheet_to_json(sheet, {header:1});
     }
-    showVariants(data);
-    displayResults(data);
+    showResults(data);
   };
   if (file.name.endsWith('.csv')) reader.readAsText(file, 'utf-8');
   else reader.readAsArrayBuffer(file);
 }
 
-// Показываем все уникальные варианты и баллы
-function showVariants(data) {
-  let variantsSet = new Set();
-  data.slice(1).forEach(row => {
-    for (let i = 3; i < 3+weights.length; i++) {
-      const v = (row[i] || '').replace(/^\"|\"$/g, '').trim();
-      if (v) variantsSet.add(v);
-    }
-  });
-  let html = '<h3>Справочник вариантов ответов</h3><table class=\"variant-table\"><tr><th>Вариант ответа</th><th>Балл</th></tr>';
-  let warnRows = [];
-  for (let v of Array.from(variantsSet)) {
-    if (likertMapping[v] !== undefined) {
-      html += `<tr><td>${v}</td><td>${likertMapping[v]}</td></tr>`;
-    } else {
-      warnRows.push(`<tr class='warn'><td>${v}</td><td>❗️Нет разбаловки (будет 0!)</td></tr>`);
-    }
-  }
-  html += warnRows.join('');
-  html += '</table>';
-  document.getElementById('variants').innerHTML = html;
-}
-
-// Выводим баллы респондентов
-function displayResults(data) {
-  let output = '<table><tr><th>ФИО</th><th>Soft %</th><th>Hard %</th><th>Total %</th><th>Интерпретация</th></tr>';
-  data.slice(1).forEach(row => {
+function showResults(data) {
+  let html = '';
+  let notFoundSet = new Set();
+  data.slice(1).forEach((row, rowIdx) => {
     const name = (row[1] || row[0] || '—').toString().trim();
     let softScore = 0, hardScore = 0, softMax = 0, hardMax = 0;
+    let answerRows = '';
     for (let i = 0; i < weights.length; i++) {
       const ans = (row[i + 3] || '').replace(/^\"|\"$/g, '').trim();
       const value = likertMapping[ans] !== undefined ? likertMapping[ans] : 0;
+      if (likertMapping[ans] === undefined && ans !== '') notFoundSet.add(ans);
+      const cellClass = likertMapping[ans] === undefined && ans !== '' ? 'warn-cell' : '';
+      answerRows += `<tr><td>${questionLabels[i]}</td><td>${ans}</td><td class='${cellClass}'>${value}${cellClass ? ' <span class=\"warn\">(нет разбаловки!)</span>' : ''}</td></tr>`;
       const weight = weights[i];
       if (i < 22) {
         softScore += value * weight;
@@ -126,21 +90,30 @@ function displayResults(data) {
     const softPct = Math.round((softScore / softMax) * 100);
     const hardPct = Math.round((hardScore / hardMax) * 100);
     const total = Math.round(softPct * 0.6 + hardPct * 0.4);
-    let interpretation = '🔴 Низкий уровень';
-    if (total >= 85) interpretation = '🟢 Отлично – зрелые компетенции';
-    else if (total >= 65) interpretation = '🟡 Хорошо – есть потенциал';
-    else if (total >= 45) interpretation = '🟠 Средне – требуется развитие';
+    let interp = '🔴 Низкий уровень';
+    if (total >= 85) interp = '🟢 Отлично – зрелые компетенции';
+    else if (total >= 65) interp = '🟡 Хорошо – есть потенциал';
+    else if (total >= 45) interp = '🟠 Средне – требуется развитие';
 
-    output += `<tr><td>${name}</td><td>${softPct}</td><td>${hardPct}</td><td>${total}</td><td>${interpretation}</td></tr>`;
+    html += `<div class='person'><b>${name}</b>
+    <table class='scores'><tr><th>Soft %</th><th>Hard %</th><th>Total %</th><th>Интерпретация</th></tr>
+    <tr><td>${softPct}</td><td>${hardPct}</td><td>${total}</td><td>${interp}</td></tr></table>
+    <details><summary>Разбалловка по вопросам</summary>
+    <table class='answers'><tr><th>Вопрос</th><th>Ответ</th><th>Балл</th></tr>
+    ${answerRows}
+    </table></details></div>`;
   });
-  output += '</table>';
-  document.getElementById('output').innerHTML = output;
+
+  if (notFoundSet.size > 0) {
+    html = `<div class='warn'><b>Внимание!</b> Есть ответы без разбаловки (${notFoundSet.size}):<br>${Array.from(notFoundSet).map(x=>`<code>${x}</code>`).join(', ')}</div>` + html;
+  }
+  document.getElementById('result').innerHTML = html;
 }
 
 document.getElementById('fileInput').addEventListener('change', function(e) {
   const file = e.target.files[0];
   if (file) handleFile(file);
 });
-</script>
+  </script>
 </body>
 </html>
