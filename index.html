@@ -15,7 +15,7 @@
 </head>
 <body>
 <h1>Результаты теста предпринимательских компетенций</h1>
-<input type="file" id="file" accept=".xlsx">
+<input type="file" id="file" accept=".xlsx,.csv">
 <div id="output"></div>
 
 <script>
@@ -48,10 +48,39 @@ const mapping = {
   'Часто проявляю креативность': 4, 'Постоянно проявляю креативность': 5,
   'Нет': 1, 'Да': 5,
   'Beginner (A1)': 1, 'Elementary (A2)': 2, 'Pre-Intermediate (B1)': 3,
-  'Upper Intermediate (B2)': 4, 'Advanced (C1)': 5, 'Proficiency (C2)': 5,
-  'Не использую': 1, 'Использую редко': 2, 'Использую частично': 3, 'Использую регулярно': 4,
-  'Профессионально использую': 5, 'Постоянно': 5
+  'Intermediate (B1)': 3, 'Upper Intermediate (B2)': 4, 'Advanced (C1)': 5, 'Proficiency (C2)': 5,
+  'Не использую': 1, 'Использую готовые шаблоны': 2, 'Создаю простые сценарии автоматизации': 3,
+  'Создаю сложные цепочки автоматизации': 4, 'Разрабатываю комплексные системы автоматизации бизнес-процессов': 5,
+  'Использую только базовые функции': 2,
+  'Умею создавать каналы и группы': 3,
+  'Умею интегрировать с другими инструментами': 4,
+  'Профессионально использую все возможности': 5,
+  'Использую для личных задач': 2,
+  'Использую для командной работы': 3,
+  'Умею настраивать сложные workflows': 4,
+  'Профессионально использую для стратегического управления': 5,
+  'Создаю простые списки задач': 2,
+  'Умею группировать задачи по проектам': 3,
+  'Умею связывать задачи с KPI': 4,
+  'Строю сложные системы задач для стратегического управления': 5,
+  'Использую для хранения файлов': 2,
+  'Использую для совместной работы': 3,
+  'Интегрирую несколько сервисов между собой': 4,
+  'Строю на их основе всю цифровую инфраструктуру компании': 5,
+  'Умею работать с простыми таблицами': 2,
+  'Умею использовать формулы и сводные таблицы': 3,
+  'Умею создавать сложные аналитические отчёты': 4,
+  'Профессионально использую для стратегического анализа': 5,
+  'Полагаюсь на рекомендации других': 2,
+  'Могу выбрать из известных мне вариантов': 3,
+  'Провожу сравнительный анализ перед выбором': 4,
+  'Профессионально подбираю и внедряю инструменты': 5
 };
+
+function parseFile(content) {
+  const rows = content.split('\n').map(r => r.split(','));
+  return rows.filter(r => r.length > 30 && r[1] && r[3]);
+}
 
 function calculateScores(data) {
   let html = '<table><tr><th>ФИО</th><th>Soft %</th><th>Hard %</th><th>Total %</th><th>Интерпретация</th></tr>';
@@ -59,7 +88,7 @@ function calculateScores(data) {
     const name = row[1];
     let softScore = 0, hardScore = 0, softMax = 0, hardMax = 0;
     for (let i = 0; i < 31; i++) {
-      const val = mapping[row[i + 2]?.trim()] || 0;
+      const val = mapping[row[i + 3]?.trim()] || 0;
       const weight = weights[i];
       if (i < 22) {
         softScore += val * weight;
@@ -83,15 +112,14 @@ function calculateScores(data) {
 }
 
 document.getElementById('file').addEventListener('change', function(e) {
+  const file = e.target.files[0];
   const reader = new FileReader();
   reader.onload = function(e) {
-    const data = new Uint8Array(e.target.result);
-    const workbook = XLSX.read(data, {type: 'array'});
-    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-    const parsed = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
-    calculateScores(parsed);
+    const text = e.target.result;
+    const data = parseFile(text);
+    calculateScores(data);
   };
-  reader.readAsArrayBuffer(this.files[0]);
+  reader.readAsText(file);
 });
 </script>
 </body>
