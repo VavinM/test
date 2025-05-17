@@ -2,19 +2,19 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Оценка предпринимательских компетенций</title>
+  <title>Тест предпринимательских компетенций</title>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
-    body { font-family: Arial; padding: 20px; background: #f4f4f4; }
+    body { font-family: Arial; padding: 20px; background-color: #f4f4f4; }
     h1 { text-align: center; }
-    input[type=file] { margin-bottom: 20px; }
-    table { border-collapse: collapse; width: 100%; margin-top: 20px; background: white; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    input[type=file] { margin: 20px 0; }
+    table { width: 100%; border-collapse: collapse; background: #fff; margin-top: 20px; }
+    th, td { padding: 10px; border: 1px solid #ccc; text-align: left; }
     th { background-color: #eee; }
   </style>
 </head>
 <body>
-<h1>Оценка предпринимательских компетенций</h1>
+<h1>Тест предпринимательских компетенций</h1>
 <input type="file" id="fileInput" accept=".xlsx,.csv">
 <div id="output"></div>
 
@@ -22,7 +22,7 @@
 const weights = [8,7,6,7,5,8,7,6,5,6,5,8,7,6,7,5,4,5,5,4,7,5,6,5,7,8,7,6,7,6,8];
 
 const likertMapping = {
-  'Совсем не уверен': 1, 'Скорее не уверен': 2, 'Нейтрально': 3, 'Скорее уверен': 4, 'Полностью уверен': 5,
+ 'Совсем не уверен': 1, 'Скорее не уверен': 2, 'Нейтрально': 3, 'Скорее уверен': 4, 'Полностью уверен': 5,
   'Демократический': 4, 'Директивный': 2, 'Ситуативный': 5, 'Либеральный': 3, 'Смешанный': 4,
   'Провожу дополнительное обсуждение, чтобы найти компромисс': 5,
   'Настаиваю на своём решении, так как уверен в его правильности': 2,
@@ -103,9 +103,8 @@ function handleFile(file) {
   reader.onload = function(e) {
     const data = new Uint8Array(e.target.result);
     const workbook = XLSX.read(data, { type: 'array' });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
     displayResults(json);
   };
   reader.readAsArrayBuffer(file);
@@ -116,11 +115,11 @@ function displayResults(data) {
   const header = data[0];
 
   data.slice(1).forEach(row => {
-    const name = row[1];
+    const name = (row[1] || '—').toString().trim();
     let softScore = 0, hardScore = 0, softMax = 0, hardMax = 0;
     for (let i = 0; i < 31; i++) {
-      const answer = (row[i + 3] || '').trim();
-      const value = likertMapping[answer] || 0;
+      const raw = (row[i + 3] || '').toString().trim().replace(/^"|"$/g, '');
+      const value = likertMapping[raw] || 0;
       const weight = weights[i];
       if (i < 22) {
         softScore += value * weight;
