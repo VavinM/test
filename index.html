@@ -2,169 +2,235 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Тест предпринимательских компетенций: анализ и разбаловка</title>
+  <title>Тест предпринимательских компетенций</title>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; background: #fafafa; margin: 0; padding: 30px;}
-    h1 { text-align: center; margin-bottom: 10px;}
-    h2 { margin: 30px 0 10px 0; }
-    .file-box { margin-bottom: 25px; text-align: center;}
-    .warn { color: #d32f2f; background: #fff0f0;}
-    table { border-collapse: collapse; width: 100%; margin-bottom: 35px;}
-    th, td { border: 1px solid #ccc; padding: 7px 10px; }
-    th { background: #f3f3f3;}
-    .score-err { background: #ffefef; color: #d32f2f; font-weight: bold;}
-    .summary { font-weight: bold; background: #e8eaf6;}
-    .ok { color: #388e3c;}
-    .mid { color: #ff9800;}
-    .low { color: #d32f2f;}
-    .good { color: #1976d2;}
-    .unknown { color: #d32f2f;}
-    .result-box { margin: 0 auto; max-width: 1150px; }
-    .details-title { font-size: 1.2em; font-weight: bold; margin: 25px 0 5px;}
+    body { font-family: Arial, sans-serif; background: #fafafa; }
+    h1 { text-align: center; }
+    #fioSelect { margin-bottom: 20px; }
+    .warning { color: #b71c1c; background: #fde0e0; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
+    th, td { border: 1px solid #ccc; padding: 7px; }
+    th { background: #eee; }
+    .result-block { font-size: 1.2em; margin-bottom: 20px; }
+    .score { font-size: 1.4em; font-weight: bold; margin: 10px 0; }
+    .level { font-weight: bold; }
+    .low { color: #b71c1c; }
+    .medium { color: #ff9800; }
+    .good { color: #2196f3; }
+    .high { color: #388e3c; }
+    .centered { text-align: center; }
   </style>
 </head>
 <body>
   <h1>Тест предпринимательских компетенций</h1>
-  <div class="file-box">
-    <input type="file" id="fileInput" accept=".xlsx,.csv"/>
-  </div>
-  <div class="result-box" id="output"></div>
+  <input type="file" id="fileInput" accept=".xlsx,.csv">
+  <br>
+  <label for="fioSelect"><b>Выберите респондента:</b></label>
+  <select id="fioSelect"></select>
+  <div id="personResult"></div>
+  <div id="details"></div>
+  <div id="summary"></div>
+  <script>
+    // === Разбалловка ===
+    const likertMapping = {
+      "Совсем не уверен": 1,
+      "Скорее не уверен": 2,
+      "Нейтрально": 3,
+      "Скорее уверен": 4,
+      "Полностью уверен": 5,
+      "Демократический": 4,
+      "Директивный": 2,
+      "Ситуативный": 5,
+      "Либеральный": 3,
+      "Смешанный": 4,
+      "Провожу дополнительное обсуждение, чтобы найти компромисс": 5,
+      "Настаиваю на своём решении, так как уверен в его правильности": 2,
+      "Пересматриваю решение с учётом мнения команды": 4,
+      "Делегирую принятие решения команде": 3,
+      "Игнорирую несогласие, так как считаю его необоснованным": 1,
+      "Почти никогда": 1,
+      "Редко": 2,
+      "Иногда": 3,
+      "Часто": 4,
+      "Почти всегда": 5,
+      "Легко адаптируюсь и нахожу баланс": 5,
+      "Стараюсь разделять личную и профессиональную жизнь": 4,
+      "Обращаюсь за поддержкой к коллегам или друзьям": 3,
+      "Чувствую стресс, но продолжаю работать": 2,
+      "Теряю продуктивность и не могу справиться с изменениями": 1,
+      "Совсем не умею": 1,
+      "Редко удаётся": 2,
+      "Иногда удаётся": 3,
+      "Часто удаётся": 4,
+      "Почти всегда удаётся": 5,
+      "Нет": 1,
+      "Да": 5,
+      // ДОБАВЛЕНЫ новые варианты
+      "Intermediate (B1)": 3,
+      "Умею создавать каналы и группы": 3,
+      "Использую для личных задач": 2,
+      "Участвовал(а) в обсуждениях": 3,
+      "Управлял(а) проектами средней сложности (3-12 месяцев)": 3,
+      "Хорошо": 4,
+      "Использую сложные системы планирования": 4,
+      "Обращаюсь за советом к экспертам": 3,
+      "Использую формальный подход, чтобы избежать конфликтов": 2,
+      "Провожу индивидуальные беседы с участниками конфликта": 4,
+      "Иногда удаётся достичь соглашения": 3,
+      "Управлял(а) средней командой (6-15 человек)": 4,
+      "Умею группировать задачи по проектам": 3,
+      "Использую для совместной работы": 3,
+      "Умею работать с простыми таблицами": 2,
+      "Создаю простые сценарии автоматизации": 3,
+      // ... при необходимости — расширяй далее!
+    };
 
-<script>
-/* ======================= МАССИВ ВЕСОВ ======================= */
-const weights = [
-  8,7,6,7,5,8,7,6,5,6,5,8,7,6,7,5,4,5,5,4,7,5,  // 1–22 (soft)
-  6,5,7,8,7,6,7,6,8                             // 23–31 (hard)
-];
+    // Индивидуальные веса по вопросам (31 вопрос)
+    const weights = [8,7,6,7,5,8,7,6,5,6,5,8,7,6,7,5,4,5,5,4,7,5,6,5,7,8,7,6,7,6,8];
 
-/* ===================== СЛОВАРЬ ОТВЕТОВ =======================
-  !!! ВНИМАНИЕ: обязательно дополни здесь все возможные варианты ответов (копируй из Google-форм) !!!
-  Формат: "Вариант из формы": балл
-  Добавляй новые без стеснения!
-*/
-const likertMapping = {
-  // Стандартная шкала Лайкерта:
-  "Совсем не уверен": 1, "Скорее не уверен": 2, "Нейтрально": 3, "Скорее уверен": 4, "Полностью уверен": 5,
-  "Демократический": 4, "Директивный": 2, "Ситуативный": 5, "Либеральный": 3, "Смешанный": 4,
-  "Провожу дополнительное обсуждение, чтобы найти компромисс": 5,
-  "Настаиваю на своём решении, так как уверен в его правильности": 2,
-  "Пересматриваю решение с учётом мнения команды": 4,
-  "Делегирую принятие решения команде": 3,
-  "Игнорирую несогласие, так как считаю его необоснованным": 1,
-  "Почти никогда": 1, "Редко": 2, "Иногда": 3, "Часто": 4, "Почти всегда": 5,
-  "Легко адаптируюсь и нахожу баланс": 5,
-  "Стараюсь разделять личную и профессиональную жизнь": 4,
-  "Обращаюсь за поддержкой к коллегам или друзьям": 3,
-  "Чувствую стресс, но продолжаю работать": 2,
-  "Теряю продуктивность и не могу справиться с изменениями": 1,
-  "Совсем не умею": 1, "Редко удаётся": 2, "Иногда удаётся": 3, "Часто удаётся": 4, "Почти всегда удаётся": 5,
-  "Нет": 1, "Да": 5,
-  "Не справляюсь": 1, "С трудом": 2, "Умеренно": 3, "Хорошо": 4, "Отлично": 5,
-  "Без системы": 1, "Использую простые списки": 2, "Использую таск-менеджеры": 3,
-  "Использую сложные системы планирования": 4, "Делегирую задачи команде": 5,
-  "Увеличиваю количество ресурсов на проект": 4, "Пересматриваю сроки и приоритеты задач": 3,
-  "Провожу встречу с командой для поиска решений": 5, "Ускоряю выполнение задач за счёт качества": 2,
-  "Обращаюсь за помощью к внешним консультантам": 1,
-  "Профессионально использую все возможности": 5,
-  "Использую только базовые функции": 2, "Умею создавать каналы и группы": 3, "Умею интегрировать с другими инструментами": 4,
-  "Не использую": 1, "Использую для личных задач": 2, "Использую для командной работы": 3, "Умею настраивать сложные workflows": 4,
-  "Профессионально использую для стратегического управления": 5,
-  "Использую готовые шаблоны": 2, "Создаю простые сценарии автоматизации": 3, "Создаю сложные цепочки автоматизации": 4,
-  "Разрабатываю комплексные системы автоматизации бизнес-процессов": 5,
-  "Использую для генерации контента": 3, "Использую для анализа данных": 4, "Интегрирую в бизнес-процессы компании": 5,
-  "Полагаюсь на рекомендации других": 2, "Могу выбрать из известных мне вариантов": 3,
-  "Провожу сравнительный анализ перед выбором": 4, "Профессионально подбираю и внедряю инструменты": 5,
-  "Использую для хранения файлов": 2, "Использую для совместной работы": 3,
-  "Интегрирую несколько сервисов между собой": 4,
-  "Строю на их основе всю цифровую инфраструктуру компании": 5,
-  "Умею работать с простыми таблицами": 2, "Умею использовать формулы и сводные таблицы": 3,
-  "Умею создавать сложные аналитические отчёты": 4, "Профессионально использую для стратегического анализа": 5,
-  // Расширяйте список!
-};
+    let persons = [];
+    let header = [];
+    let answers = [];
 
-/* =================== ПАРСИНГ ТАБЛИЦЫ =================== */
-function isFioColumn(col) {
-  const fio = col.trim().toLowerCase();
-  return fio.includes("фио") || fio.includes("фамилия") || fio.includes("имя");
-}
-
-/* ========== ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ ========== */
-document.getElementById('fileInput').addEventListener('change', function(e) {
-  if (!e.target.files[0]) return;
-  const reader = new FileReader();
-  reader.onload = function(ev) {
-    let data = new Uint8Array(ev.target.result);
-    let workbook = XLSX.read(data, {type: 'array'});
-    let sheet = workbook.Sheets[workbook.SheetNames[0]];
-    let rows = XLSX.utils.sheet_to_json(sheet, {header: 1});
-
-    // Найдём строку с заголовками и определим столбцы
-    let headerIdx = rows.findIndex(row => row.some(isFioColumn));
-    if (headerIdx === -1) { document.getElementById('output').innerHTML = "<p class='warn'>Заголовок с ФИО не найден!</p>"; return;}
-    const header = rows[headerIdx];
-    let fioCol = header.findIndex(isFioColumn);
-
-    // Обрежем лишнее
-    rows = rows.slice(headerIdx + 1).filter(row => (row[fioCol] && row.length > fioCol + 10)); // оставляем заполненные строки
-
-    let resultHTML = "";
-    let summaryRows = "";
-
-    rows.forEach((row, idx) => {
-      const name = (row[fioCol] || "-").toString().trim();
-      let softScore = 0, hardScore = 0, softMax = 0, hardMax = 0, details = "";
-      let qNum = 1;
-      // Детальная разбаловка
-      details += `<h2>Детальная разбаловка для: ${name}</h2>
-      <table>
-        <tr><th>Вопрос</th><th>Ответ</th><th>Балл</th></tr>`;
-      for (let i = 0; i < 31; i++) {
-        const ansIdx = fioCol + 1 + i;
-        const answer = (row[ansIdx] || "").toString().trim();
-        const score = answer in likertMapping ? likertMapping[answer] : 0;
-        const warn = score === 0 && answer ? "<span class='score-err'>0 (нет разбаловки!)</span>" : score;
-        if (i < 22) {
-          softScore += score * weights[i];
-          softMax += 5 * weights[i];
-        } else {
-          hardScore += score * weights[i];
-          hardMax += 5 * weights[i];
-        }
-        details += `<tr><td>Вопрос ${qNum++}</td><td>${answer || "-"}</td><td class="${score === 0 && answer ? "score-err" : ""}">${warn}</td></tr>`;
-      }
-      details += "</table>";
-
-      // Итоговые проценты
-      const softPct = Math.round(softScore / softMax * 100);
-      const hardPct = Math.round(hardScore / hardMax * 100);
-      const total = Math.round(softPct * 0.6 + hardPct * 0.4);
-
-      // Интерпретация
-      let interp = `<span class="low">🔴 Низкий уровень</span>`;
-      if (total >= 85) interp = `<span class="ok">🟢 Отлично – зрелые компетенции</span>`;
-      else if (total >= 65) interp = `<span class="good">🟡 Хороший уровень</span>`;
-      else if (total >= 45) interp = `<span class="mid">🟠 Средний уровень</span>`;
-
-      // Сводная строка
-      summaryRows += `<tr><td>${name}</td><td>${softPct}</td><td>${hardPct}</td><td>${total}</td><td>${interp}</td></tr>`;
-      // Детали по каждому респонденту
-      resultHTML += `<div class='details-title'>${name}</div>${details}<br/>`;
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) handleFile(file);
     });
 
-    // Итоговая таблица
-    let summaryTable = `<h2>Сводная таблица результатов</h2>
-    <table><tr>
-      <th>ФИО</th><th>Soft %</th><th>Hard %</th><th>Total %</th><th>Интерпретация</th>
-    </tr>${summaryRows}</table>`;
+    document.getElementById('fioSelect').addEventListener('change', function() {
+      displayPerson(this.value);
+    });
 
-    document.getElementById('output').innerHTML = summaryTable + "<hr>" + resultHTML +
-      `<div style="margin-top:25px;color:#666;font-size:0.97em">
-        <b>NB:</b> Если в строке баллов "0 (нет разбаловки!)" — добавь этот ответ в объект <b>likertMapping</b> в коде!
-      </div>`;
-  };
-  reader.readAsArrayBuffer(e.target.files[0]);
-});
-</script>
+    // Главная функция: парсинг файла
+    function handleFile(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        let data, workbook, sheet, json;
+        if (file.name.endsWith('.csv')) {
+          data = e.target.result;
+          json = XLSX.utils.sheet_to_json(XLSX.read(data, {type: 'string'}).Sheets.Sheet1, {header: 1});
+        } else {
+          data = new Uint8Array(e.target.result);
+          workbook = XLSX.read(data, { type: 'array' });
+          sheet = workbook.Sheets[workbook.SheetNames[0]];
+          json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        }
+        processData(json);
+      };
+      if (file.name.endsWith('.csv')) reader.readAsText(file);
+      else reader.readAsArrayBuffer(file);
+    }
+
+    // Определение структуры и сохранение данных
+    function processData(data) {
+      persons = [];
+      header = data[0];
+      answers = [];
+      let fioCol = header.findIndex(col => col && col.toLowerCase().includes('фио'));
+      if (fioCol === -1) fioCol = header.findIndex(col => col && (col.toLowerCase().includes('фамилия') || col.toLowerCase().includes('имя')));
+      if (fioCol === -1) fioCol = 1; // fallback
+
+      // Определим столбцы с ответами
+      let answerStart = fioCol + 1;
+      // отрежем строки с пустым ФИО
+      data.slice(1).forEach(row => {
+        if (row[fioCol] && row[fioCol].toString().trim().length > 0) {
+          persons.push(row[fioCol].toString().trim());
+          answers.push(row.slice(answerStart, answerStart + 31));
+        }
+      });
+      // Заполняем select
+      let fioSelect = document.getElementById('fioSelect');
+      fioSelect.innerHTML = '';
+      persons.forEach((fio, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = fio;
+        fioSelect.appendChild(opt);
+      });
+      // Показываем результаты первого респондента
+      displayPerson(0);
+      // Сводная таблица
+      displaySummary();
+    }
+
+    // Вывод разбаловки по одному пользователю
+    function displayPerson(idx) {
+      if (!answers[idx]) return;
+      const ans = answers[idx];
+      let details = `<h3 class="centered">${persons[idx]}</h3>`;
+      details += `<table><tr><th>Вопрос</th><th>Ответ</th><th>Балл</th></tr>`;
+      let softScore = 0, hardScore = 0, softMax = 0, hardMax = 0;
+      for (let i = 0; i < ans.length; i++) {
+        let a = (ans[i] || '').toString().trim();
+        let val = (a in likertMapping) ? likertMapping[a] : 0;
+        const weight = weights[i];
+        let className = '';
+        if (!(a in likertMapping)) className = 'warning';
+        if (i < 22) {
+          softScore += val * weight;
+          softMax += 5 * weight;
+        } else {
+          hardScore += val * weight;
+          hardMax += 5 * weight;
+        }
+        details += `<tr class="${className}"><td>Вопрос ${i+1}</td><td>${a}</td><td>${val}${className ? ' (нет разбаловки!)' : ''}</td></tr>`;
+      }
+      details += '</table>';
+      document.getElementById('details').innerHTML = details;
+      showPersonResult(softScore, hardScore, softMax, hardMax);
+    }
+
+    // Блок итоговых баллов по выбранному респонденту
+    function showPersonResult(softScore, hardScore, softMax, hardMax) {
+      const softPct = Math.round((softScore / softMax) * 100);
+      const hardPct = Math.round((hardScore / hardMax) * 100);
+      const total = Math.round(softPct * 0.6 + hardPct * 0.4);
+      let level = `<span class="level low">🔴 Низкий уровень</span>`;
+      if (total >= 85) level = `<span class="level high">🟢 Отлично – зрелые компетенции</span>`;
+      else if (total >= 65) level = `<span class="level good">🟡 Хорошо – есть потенциал</span>`;
+      else if (total >= 45) level = `<span class="level medium">🟠 Средне – требуется развитие</span>`;
+      document.getElementById('personResult').innerHTML = `
+        <div class="result-block centered">
+          <div>Soft skills: <span class="score">${softPct}%</span></div>
+          <div>Hard skills: <span class="score">${hardPct}%</span></div>
+          <div>Общий балл: <span class="score">${total}%</span></div>
+          <div>Интерпретация: ${level}</div>
+        </div>
+      `;
+    }
+
+    // Сводная таблица по всем
+    function displaySummary() {
+      let out = '<h3>Сводная таблица по всем респондентам</h3>';
+      out += `<table><tr><th>ФИО</th><th>Soft %</th><th>Hard %</th><th>Total %</th><th>Интерпретация</th></tr>`;
+      answers.forEach((ans, idx) => {
+        let softScore = 0, hardScore = 0, softMax = 0, hardMax = 0;
+        for (let i = 0; i < ans.length; i++) {
+          let a = (ans[i] || '').toString().trim();
+          let val = (a in likertMapping) ? likertMapping[a] : 0;
+          const weight = weights[i];
+          if (i < 22) {
+            softScore += val * weight;
+            softMax += 5 * weight;
+          } else {
+            hardScore += val * weight;
+            hardMax += 5 * weight;
+          }
+        }
+        const softPct = Math.round((softScore / softMax) * 100);
+        const hardPct = Math.round((hardScore / hardMax) * 100);
+        const total = Math.round(softPct * 0.6 + hardPct * 0.4);
+        let level = `🔴 Низкий уровень`;
+        if (total >= 85) level = `🟢 Отлично – зрелые компетенции`;
+        else if (total >= 65) level = `🟡 Хорошо – есть потенциал`;
+        else if (total >= 45) level = `🟠 Средне – требуется развитие`;
+        out += `<tr><td>${persons[idx]}</td><td>${softPct}</td><td>${hardPct}</td><td>${total}</td><td>${level}</td></tr>`;
+      });
+      out += '</table>';
+      document.getElementById('summary').innerHTML = out;
+    }
+  </script>
 </body>
 </html>
